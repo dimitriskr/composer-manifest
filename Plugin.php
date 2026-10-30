@@ -108,6 +108,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable {
       return !($package instanceof AliasPackage);
     });
 
+    // TODO: do we want to include the lock hash? Not sure it's useful, and it's
+    // a PITA in merge conflicts.
+    // $lock = $this->composer->getLocker()->getLockData();
+    // $content_hash = $lock['content-hash'];
+
     $package_versions = array();
     foreach ($packages as $package) {
       $pretty_version = $package->getFullPrettyVersion(FALSE);
