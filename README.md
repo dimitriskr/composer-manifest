@@ -36,6 +36,16 @@ composer-manifest.yaml file in your project root. You should commit this to
 version control at the same time as you commit changes to composer.json and
 composer.lock to keep a history of changes.
 
+### Commands
+
+You can manually regenerate the manifest file at any time by running:
+
+```
+composer manifest:generate
+```
+
+(or using the alias `composer manifest`).
+
 ### Integrations
 
 With [Renovate](https://github.com/renovatebot/renovate), use the fileFilters
