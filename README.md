@@ -46,6 +46,10 @@ composer manifest:generate
 
 (or using the alias `composer manifest`).
 
+### Validation
+
+When running `composer validate`, the plugin will also validate that `composer-manifest.yaml` exists, is valid YAML, and is up to date with the installed packages.
+
 ### Integrations
 
 With [Renovate](https://github.com/renovatebot/renovate), use the fileFilters

@@ -8,9 +8,12 @@ use Composer\Installer\PackageEvents;
 use Composer\IO\IOInterface;
 use Composer\Package\AliasPackage;
 use Composer\Plugin\Capable;
+use Composer\Plugin\CommandEvent;
+use Composer\Plugin\PluginEvents;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\ScriptEvents;
 use Composer\EventDispatcher\Event as BaseEvent;
+use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -58,7 +61,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable {
       ScriptEvents::POST_INSTALL_CMD => array('updateManifest'),
       ScriptEvents::POST_UPDATE_CMD => array('updateManifest'),
       PackageEvents::POST_PACKAGE_UNINSTALL => array('updateManifest', 10),
+      PluginEvents::COMMAND => array('onCommand'),
     );
+  }
+
+  /**
+   * Handles Composer command events.
+   *
+   * @param \Composer\Plugin\CommandEvent $event
+   *
+   * @return bool|null
+   */
+  public function onCommand(CommandEvent $event) {
+    if ($event->getCommandName() === 'validate') {
+      return $this->validateManifest();
+    }
   }
 
 
@@ -126,6 +143,84 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable {
 
     $yaml = Yaml::dump($yaml_data);
     file_put_contents($filename, $yaml);
+  }
+
+  /**
+   * Validates the manifest YAML file.
+   *
+   * @param string $filename
+   *
+   * @return bool
+   */
+  public function validateManifest($filename = 'composer-manifest.yaml') {
+    if (!file_exists($filename)) {
+      if ($this->io) {
+        $this->io->writeError("<error>$filename does not exist.</error>");
+      }
+      return FALSE;
+    }
+
+    if (!is_readable($filename)) {
+      if ($this->io) {
+        $this->io->writeError("<error>$filename is not readable.</error>");
+      }
+      return FALSE;
+    }
+
+    try {
+      $data = Yaml::parseFile($filename);
+    }
+    catch (ParseException $e) {
+      if ($this->io) {
+        $this->io->writeError("<error>$filename is not valid YAML: " . $e->getMessage() . "</error>");
+      }
+      return FALSE;
+    }
+
+    if (!is_array($data) || !isset($data['packages']) || !is_array($data['packages'])) {
+      if ($this->io) {
+        $this->io->writeError("<error>$filename is invalid: missing or invalid 'packages' section.</error>");
+      }
+      return FALSE;
+    }
+
+    $manifest_packages = $data['packages'];
+    $expected_packages = $this->getPackageVersions();
+
+    $missing_packages = array_diff_key($expected_packages, $manifest_packages);
+    $extra_packages = array_diff_key($manifest_packages, $expected_packages);
+    $version_mismatches = array();
+
+    foreach ($expected_packages as $name => $expected_version) {
+      if (isset($manifest_packages[$name]) && $manifest_packages[$name] !== $expected_version) {
+        $version_mismatches[$name] = array(
+          'expected' => $expected_version,
+          'actual' => $manifest_packages[$name],
+        );
+      }
+    }
+
+    if (!empty($missing_packages) || !empty($extra_packages) || !empty($version_mismatches)) {
+      if ($this->io) {
+        $this->io->writeError("<error>$filename is not up to date with installed packages:</error>");
+        foreach ($missing_packages as $name => $ver) {
+          $this->io->writeError("<error> - Package '$name' ($ver) is missing</error>");
+        }
+        foreach ($extra_packages as $name => $ver) {
+          $this->io->writeError("<error> - Package '$name' ($ver) is not installed</error>");
+        }
+        foreach ($version_mismatches as $name => $diff) {
+          $this->io->writeError("<error> - Package '$name' has version '{$diff['actual']}', expected '{$diff['expected']}'</error>");
+        }
+      }
+      return FALSE;
+    }
+
+    if ($this->io) {
+      $this->io->write("<info>$filename is valid</info>");
+    }
+
+    return TRUE;
   }
 
 
