@@ -74,6 +74,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable {
    */
   public function onCommand(CommandEvent $event) {
     if ($event->getCommandName() === 'validate') {
+      if ($this->composer) {
+        $config = $this->composer->getConfig();
+        $validateManifest = $config ? filter_var($config->get('validate-manifest'), FILTER_VALIDATE_BOOLEAN) : FALSE;
+        if (!$validateManifest) {
+          return;
+        }
+      }
       return $this->validateManifest();
     }
   }

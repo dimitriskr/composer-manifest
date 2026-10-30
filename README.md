@@ -48,7 +48,17 @@ composer manifest:generate
 
 ### Validation
 
-When running `composer validate`, the plugin will also validate that `composer-manifest.yaml` exists, is valid YAML, and is up to date with the installed packages.
+When running `composer validate`, the plugin can validate that `composer-manifest.yaml` exists, is valid YAML, and is up to date with the installed packages.
+
+To enable this validation, configure `validate-manifest` in `composer.json` (defaults to `false`):
+
+```json
+{
+    "config": {
+        "validate-manifest": true
+    }
+}
+```
 
 ### Integrations
 
